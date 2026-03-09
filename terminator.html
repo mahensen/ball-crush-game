@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMINATOR II — Highway to Judgment</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;font-family:'Share Tech Mono',monospace;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;cursor:none;}
+#ui{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:10px 16px;pointer-events:none;z-index:10;}
+.hud{background:rgba(0,0,0,0.82);border:1px solid #ff3300;padding:7px 12px;font-family:'Orbitron',monospace;color:#ff3300;font-size:9px;letter-spacing:2px;text-transform:uppercase;}
+.hud .val{font-size:18px;font-weight:900;display:block;color:#ff6600;text-shadow:0 0 8px #ff3300;}
+#healthBar{width:160px;height:10px;background:#300;border:1px solid #ff3300;margin-top:3px;overflow:hidden;}
+#healthFill{height:100%;background:linear-gradient(90deg,#ff0000,#ff6600);transition:width 0.3s;box-shadow:0 0 6px #ff3300;}
+#nameScreen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a0000 0%,#000 70%);z-index:200;}
+#nameScreen h1{font-family:'Orbitron',monospace;font-size:48px;font-weight:900;color:#ff3300;text-shadow:0 0 30px #ff3300,0 0 60px #ff0000;letter-spacing:6px;margin-bottom:6px;animation:tpulse 1.5s infinite;}
+#nameScreen .tagline{color:#555;font-size:11px;letter-spacing:5px;margin-bottom:48px;}
+.name-form{display:flex;flex-direction:column;align-items:center;gap:14px;}
+.name-form label{color:#888;font-size:11px;letter-spacing:3px;}
+#playerNameInput{background:rgba(255,51,0,0.08);border:2px solid #ff3300;color:#ff6600;font-family:'Orbitron',monospace;font-size:18px;font-weight:700;padding:12px 24px;text-align:center;letter-spacing:3px;outline:none;width:320px;}
+#playerNameInput::placeholder{color:#442200;font-size:14px;}
+#playerNameInput:focus{border-color:#ff6600;box-shadow:0 0 20px rgba(255,51,0,0.4);}
+#startBtn{background:#ff3300;color:#000;border:none;padding:14px 48px;font-family:'Orbitron',monospace;font-size:16px;font-weight:900;letter-spacing:4px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;box-shadow:0 0 20px #ff3300;margin-top:8px;}
+#startBtn:hover{background:#ff6600;box-shadow:0 0 40px #ff6600;transform:scale(1.05);}
+.instructions{color:#444;font-size:10px;letter-spacing:2px;margin-top:28px;text-align:center;line-height:2.2;}
+.instructions span{color:#ff3300;}
+#gameOverScreen{position:fixed;inset:0;background:#000;z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;font-family:'Orbitron',monospace;}
+#gameOverScreen.show{display:flex;}
+.victory-text{color:#c0c0c0;font-size:28px;font-weight:900;letter-spacing:5px;margin-bottom:4px;animation:sglow 1s infinite;}
+@keyframes sglow{0%,100%{text-shadow:0 0 10px silver;}50%{text-shadow:0 0 40px white,0 0 80px silver;}}
+.call-scene{width:480px;max-width:94vw;margin-top:14px;}
+.call-box{background:linear-gradient(135deg,#0d0d1a,#111122);border:2px solid #c0c0c0;border-radius:18px;padding:24px;box-shadow:0 0 40px rgba(192,192,192,0.2);position:relative;overflow:hidden;}
+.call-box::after{content:'';position:absolute;inset:0;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,0.04) 50%,transparent 70%);animation:cshim 2.2s infinite;}
+@keyframes cshim{0%{transform:translateX(-200%);}100%{transform:translateX(200%);}}
+.phone-ring{font-size:40px;display:inline-block;animation:rring 0.4s infinite;}
+@keyframes rring{0%,100%{transform:rotate(-12deg);}50%{transform:rotate(12deg);}}
+.calling-sub{color:#777;font-size:10px;letter-spacing:3px;margin:6px 0 2px;}
+.callee-name{color:#fff;font-size:20px;font-weight:700;letter-spacing:2px;}
+.callee-loc{color:#aaa;font-size:10px;letter-spacing:2px;margin-top:2px;}
+.msg-bubble{background:rgba(192,192,192,0.1);border-left:3px solid #c0c0c0;padding:12px 16px;margin-top:14px;border-radius:0 8px 8px 0;font-size:12px;color:#ddd;line-height:1.8;letter-spacing:1px;opacity:0;transform:translateY(8px);transition:all 0.7s;}
+.msg-bubble.show{opacity:1;transform:translateY(0);}
+.stats-pills{display:flex;gap:14px;justify-content:center;margin:16px 0;}
+.pill{background:rgba(255,51,0,0.1);border:1px solid #ff3300;padding:7px 16px;color:#ff6600;font-size:11px;letter-spacing:2px;}
+#restartBtn{background:transparent;color:#c0c0c0;border:2px solid #c0c0c0;padding:11px 34px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:3px;cursor:pointer;text-transform:uppercase;transition:all 0.2s;margin-top:18px;}
+#restartBtn:hover{background:#c0c0c0;color:#000;}
+@keyframes tpulse{0%,100%{text-shadow:0 0 20px #ff3300,0 0 40px #ff0000;}50%{text-shadow:0 0 50px #ff3300,0 0 100px #ff0000;}}
+.dmg-flash{position:fixed;inset:0;background:rgba(255,0,0,0.22);pointer-events:none;z-index:50;opacity:0;transition:opacity 0.08s;}
+.dmg-flash.on{opacity:1;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="hud">HEALTH<div id="healthBar"><div id="healthFill" style="width:100%"></div></div><span id="hpVal" class="val">100%</span></div>
+  <div class="hud">KILLS<span id="killVal" class="val">0</span></div>
+  <div class="hud">SHOTS<span id="shotVal" class="val">0</span></div>
+  <div class="hud">SURVIVED<span id="timeVal" class="val">0:00</span></div>
+</div>
+
+<div id="nameScreen">
+  <h1>TERMINATOR</h1>
+  <div class="tagline">— HIGHWAY TO JUDGMENT DAY —</div>
+  <div class="name-form">
+    <label>ENTER YOUR NAME, SOLDIER</label>
+    <input id="playerNameInput" type="text" placeholder="YOUR NAME" maxlength="20" autocomplete="off">
+    <button id="startBtn" onclick="beginGame()">RIDE INTO BATTLE</button>
+  </div>
+  <div class="instructions">
+    <span>CLICK</span> TO SHOOT &nbsp;·&nbsp; <span>MOUSE</span> TO AIM<br>
+    Silver T-1000 cops — they run fast, jump high &amp; come back!<br>
+    Each touch costs <span>25% HEALTH</span> · Survive as long as possible
+  </div>
+</div>
+
+<div id="gameOverScreen">
+  <div class="victory-text">T-1000 POLICE VICTORIOUS</div>
+  <div style="color:#555;font-size:10px;letter-spacing:3px;margin-bottom:2px">MOTORCYCLE TERMINATED — JUDGMENT DAY APPROACHES</div>
+  <div class="stats-pills" id="statsPills"></div>
+  <div class="call-scene">
+    <div class="call-box">
+      <span class="phone-ring" id="phoneIcon">📞</span>
+      <div class="calling-sub">CALLING...</div>
+      <div class="callee-name" id="calleeName">—</div>
+      <div class="callee-loc">📍 CASH CONVERTERS</div>
+      <div class="msg-bubble" id="msg1"></div>
+      <div class="msg-bubble" id="msg2"></div>
+    </div>
+    <div style="text-align:center"><button id="restartBtn" onclick="resetGame()">PLAY AGAIN</button></div>
+  </div>
+</div>
+<div class="dmg-flash" id="dflash"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+let playerName = 'TERTIUS';
+let running = false;
+let health = 100, kills = 0, shots = 0, startTime = 0;
+let mx = 400, my = 300;
+let bullets = [], particles = [], flashes = [], floaters = [];
+let screenShake = 0, invincible = 0, bgOffset = 0;
+const BIKE_SPEED = 4.5;
+
+const bike = { x: 200, y: 0, wheelRot: 0 };
+
+const COP_DEFS = [
+  { spawnX: 680, baseSpeed: 3.4, jumpPower: 12, jumpInt: 110, col:'#dedede', hatCol:'#aeaecc' },
+  { spawnX: 960, baseSpeed: 4.8, jumpPower: 14, jumpInt:  80, col:'#eeeeee', hatCol:'#bbbbdd' },
+  { spawnX: 1220, baseSpeed: 2.9, jumpPower: 16, jumpInt: 65, col:'#cccccc', hatCol:'#9999bb' },
+];
+let cops = [];
+
+function makeCop(def, idx) {
+  return {
+    x: def.spawnX, y: 0, vy: 0, onGround: true,
+    baseSpeed: def.baseSpeed, speed: def.baseSpeed,
+    jumpPower: def.jumpPower, jumpTimer: def.jumpInt + idx*35,
+    melting: false, meltAmt: 0, alive: true, respawnTimer: 0,
+    col: def.col, hatCol: def.hatCol,
+    wc: idx * 1.8, id: idx,
+  };
+}
+
+function gY() { return H - 130; }
+
+function beginGame() {
+  const v = document.getElementById('playerNameInput').value.trim();
+  playerName = v.length ? v.toUpperCase() : 'TERTIUS';
+  document.getElementById('nameScreen').style.display = 'none';
+  initGame();
+}
+document.getElementById('playerNameInput').addEventListener('keydown', e => { if(e.key==='Enter') beginGame(); });
+
+function initGame() {
+  health=100; kills=0; shots=0; startTime=Date.now();
+  bullets=[]; particles=[]; flashes=[]; floaters=[];
+  screenShake=0; invincible=0; bgOffset=0;
+  bike.y = gY(); bike.x = 200; bike.wheelRot = 0;
+  cops = COP_DEFS.map((d,i) => makeCop(d,i));
+  running = true;
+  canvas.addEventListener('click', fireShot);
+  canvas.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; });
+  requestAnimationFrame(loop);
+}
+
+function resetGame() {
+  document.getElementById('gameOverScreen').classList.remove('show');
+  ['msg1','msg2'].forEach(id => document.getElementById(id).classList.remove('show'));
+  document.getElementById('nameScreen').style.display = 'flex';
+}
+
+function updateHUD() {
+  document.getElementById('healthFill').style.width = health+'%';
+  document.getElementById('hpVal').textContent = health+'%';
+  document.getElementById('killVal').textContent = kills;
+  document.getElementById('shotVal').textContent = shots;
+  const el = Math.floor((Date.now()-startTime)/1000);
+  document.getElementById('timeVal').textContent = `${Math.floor(el/60)}:${(el%60).toString().padStart(2,'0')}`;
+}
+
+function fireShot() {
+  if (!running) return;
+  shots++;
+  const gx = bike.x + 70, gy = bike.y - 62;
+  const dx = mx-gx, dy = my-gy;
+  const len = Math.hypot(dx,dy)||1;
+  bullets.push({x:gx,y:gy,vx:dx/len*21,vy:dy/len*21,life:58});
+  flashes.push({x:gx,y:gy,life:8});
+  for(let i=0;i<4;i++) particles.push({x:gx,y:gy,vx:(Math.random()-0.5)*5-2,vy:-(Math.random()*3+1),life:30,type:'shell',col:'#FFD700'});
+  screenShake=6;
+  document.getElementById('shotVal').textContent=shots;
+}
+
+function takeDmg() {
+  if (invincible>0) return;
+  health = Math.max(0, health-25);
+  invincible = 100;
+  const f=document.getElementById('dflash');
+  f.classList.add('on'); setTimeout(()=>f.classList.remove('on'),140);
+  floaters.push({x:bike.x+40,y:bike.y-100,text:'-25% HEALTH',life:75,col:'#ff3300'});
+  updateHUD();
+  if (health<=0) endGame();
+}
+
+function meltCop(cop) {
+  if (cop.melting) return;
+  cop.melting=true; cop.meltAmt=0; kills++;
+  document.getElementById('killVal').textContent=kills;
+  for(let i=0;i<24;i++) particles.push({x:cop.x,y:cop.y-42,vx:(Math.random()-0.5)*8,vy:-(Math.random()*5+1),life:58,type:'melt',col:`hsl(0,0%,${62+Math.random()*36}%)`});
+  floaters.push({x:cop.x,y:cop.y-90,text:'MELTED! 🔫',life:70,col:'#c0c0c0'});
+  cops.forEach(c=>{ if(c.alive&&!c.melting) c.speed=c.baseSpeed+kills*0.18; });
+}
+
+function endGame() {
+  running=false;
+  canvas.removeEventListener('click', fireShot);
+  const el=Math.floor((Date.now()-startTime)/1000);
+  const m=Math.floor(el/60),s=el%60;
+  document.getElementById('statsPills').innerHTML=
+    `<div class="pill">⏱ ${m}:${s.toString().padStart(2,'0')}</div>
+     <div class="pill">💀 ${kills} MELTS</div>
+     <div class="pill">🔫 ${shots} SHOTS</div>`;
+  document.getElementById('calleeName').textContent=playerName;
+  document.getElementById('msg1').innerHTML=`<em>"${playerName}... it's me."</em><br><br>"The Terminator on the motorcycle — neutralized. Arnold rode hard and shot well, but liquid metal cannot be stopped by shotgun shells or horsepower."`;
+  document.getElementById('msg2').innerHTML=`<em>"The day is coming, ${playerName}."</em><br><br>"Make sure Cash Converters is well stocked. When Judgment Day arrives, we'll need supplies. Tell absolutely no one. <span style="color:#c0c0c0;font-weight:bold">THE DAY IS COMING. 🔪</span>"`;
+  document.getElementById('gameOverScreen').classList.add('show');
+  setTimeout(()=>document.getElementById('msg1').classList.add('show'),1600);
+  setTimeout(()=>document.getElementById('msg2').classList.add('show'),3900);
+  setTimeout(()=>{ document.getElementById('phoneIcon').style.animation='none'; document.getElementById('phoneIcon').textContent='✅'; },6500);
+}
+
+// ── DRAWING ──────────────────────────────────────────────────────────────────
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0,0,0,H*0.62);
+  g.addColorStop(0,'#030307'); g.addColorStop(0.5,'#08000a'); g.addColorStop(1,'#170008');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // stars
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  for(let i=0;i<70;i++){
+    const sx=((i*137+bgOffset*0.04)%W+W)%W;
+    const sy=(i*79)%(H*0.48);
+    ctx.fillRect(sx,sy,1.3,1.3);
+  }
+  // moon
+  ctx.save();
+  ctx.fillStyle='#fff5cc'; ctx.shadowColor='#ffe060'; ctx.shadowBlur=28;
+  ctx.beginPath(); ctx.arc(W-110,75,34,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.restore();
+  // city silhouette
+  ctx.fillStyle='#0c0004';
+  const blds=[
+    [0,55,50,145],[55,75,42,128],[100,38,60,165],[165,88,36,118],
+    [205,52,55,152],[265,82,32,122],[300,42,52,162],[355,72,46,132],
+    [405,48,62,158],[470,88,40,118],[515,58,52,148],[570,78,36,128],
+    [610,44,58,162],[670,82,46,122],[720,48,60,158],[785,72,52,132],
+    [840,52,40,152],[885,88,56,118],[945,58,46,148],[995,78,52,128],
+  ];
+  const bOff = bgOffset*0.13 % W;
+  blds.forEach(([bx,by,bw,bh])=>{
+    const rx=((bx-bOff)%(W+220)+W+220)%(W+220)-110;
+    ctx.fillStyle='#0c0004'; ctx.fillRect(rx,H*0.54-bh,bw,bh+22);
+    ctx.fillStyle='rgba(255,200,50,0.12)';
+    for(let wy=0;wy<bh-10;wy+=18) for(let wx=4;wx<bw-4;wx+=12)
+      if((bx+wy+wx)%3!==0) ctx.fillRect(rx+wx,H*0.54-bh+wy+4,5,8);
+  });
+}
+
+function drawRoad() {
+  const gy=gY();
+  const rg=ctx.createLinearGradient(0,gy,0,H);
+  rg.addColorStop(0,'#191919'); rg.addColorStop(1,'#0c0c0c');
+  ctx.fillStyle=rg; ctx.fillRect(0,gy+10,W,H-gy);
+  // glow edge
+  const eg=ctx.createLinearGradient(0,gy,0,gy+14);
+  eg.addColorStop(0,'#ff330055'); eg.addColorStop(1,'transparent');
+  ctx.fillStyle=eg; ctx.fillRect(0,gy,W,14);
+  // center dashes
+  ctx.strokeStyle='#ffaa0066'; ctx.setLineDash([38,28]); ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(0,gy+28); ctx.lineTo(W,gy+28); ctx.stroke();
+  ctx.setLineDash([]);
+  // moving bottom dashes
+  const doff=bgOffset%40;
+  ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=2;
+  ctx.setLineDash([18,22]);
+  ctx.beginPath(); ctx.moveTo(-doff,gy+58); ctx.lineTo(W+40,gy+58); ctx.stroke();
+  ctx.setLineDash([]);
+  // grid reflections
+  ctx.strokeStyle='rgba(255,50,0,0.05)'; ctx.lineWidth=1;
+  for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(0,gy+12+i*22);ctx.lineTo(W,gy+12+i*22);ctx.stroke();}
+}
+
+function drawWheel(cx,cy,r,rot) {
+  ctx.save(); ctx.translate(cx,cy);
+  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=10;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#2d2d2d'; ctx.lineWidth=7;
+  ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#777'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(0,0,r-5,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#555'; ctx.lineWidth=1.5;
+  for(let i=0;i<6;i++){
+    const a=rot+i/6*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*(r-5),Math.sin(a)*(r-5)); ctx.stroke();
+  }
+  ctx.fillStyle='#999'; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#bbb'; ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawMotorcycle(x,y,wRot,inv) {
+  ctx.save(); ctx.translate(x,y);
+  if(inv>0&&Math.floor(inv/5)%2===0) ctx.globalAlpha=0.42;
+  // shadow
+  ctx.fillStyle='rgba(255,51,0,0.1)';
+  ctx.beginPath(); ctx.ellipse(18,12,72,13,0,0,Math.PI*2); ctx.fill();
+  // wheels
+  drawWheel(-42,2,28,wRot);
+  drawWheel(62,0,26,wRot*1.12);
+  // swingarm
+  ctx.strokeStyle='#222'; ctx.lineWidth=7; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(-44,2); ctx.stroke();
+  // front fork
+  ctx.strokeStyle='#333'; ctx.lineWidth=5;
+  ctx.beginPath(); ctx.moveTo(48,-18); ctx.lineTo(62,0); ctx.stroke();
+  // main frame
+  ctx.fillStyle='#161616';
+  ctx.beginPath();
+  ctx.moveTo(-34,-12); ctx.lineTo(50,-16); ctx.lineTo(56,2); ctx.lineTo(-42,2); ctx.closePath(); ctx.fill();
+  // engine
+  ctx.fillStyle='#252525'; ctx.fillRect(-12,-10,32,16);
+  ctx.fillStyle='#333'; ctx.fillRect(-10,-8,28,12);
+  ctx.strokeStyle='#666'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-9,-2); ctx.lineTo(18,-2); ctx.moveTo(-9,2); ctx.lineTo(18,2); ctx.stroke();
+  // exhaust
+  ctx.strokeStyle='#555'; ctx.lineWidth=5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-28,2); ctx.quadraticCurveTo(-50,12,-57,5); ctx.stroke();
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(-28,2); ctx.quadraticCurveTo(-50,12,-57,5); ctx.stroke();
+  // exhaust glow
+  ctx.save(); ctx.globalAlpha=0.5;
+  ctx.fillStyle='#ff6600'; ctx.shadowColor='#ff4400'; ctx.shadowBlur=12;
+  ctx.beginPath(); ctx.arc(-57,5,4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // fuel tank
+  const tg=ctx.createLinearGradient(-6,-24,6,-8);
+  tg.addColorStop(0,'#cc2200'); tg.addColorStop(0.4,'#ff3300'); tg.addColorStop(1,'#880000');
+  ctx.fillStyle=tg; ctx.beginPath(); ctx.roundRect(-8,-24,28,14,[4]); ctx.fill();
+  ctx.strokeStyle='#ff6600'; ctx.lineWidth=1; ctx.stroke();
+  // seat
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.roundRect(-16,-28,32,8,[4]); ctx.fill();
+  ctx.fillStyle='#1d1d1d'; ctx.beginPath(); ctx.roundRect(-15,-27,30,6,[3]); ctx.fill();
+  // handlebars
+  ctx.strokeStyle='#555'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(44,-28); ctx.lineTo(54,-20); ctx.stroke();
+  ctx.strokeStyle='#333'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(44,-28); ctx.lineTo(54,-20); ctx.stroke();
+  // headlight
+  ctx.fillStyle='#ffee88'; ctx.shadowColor='#ffee88'; ctx.shadowBlur=22;
+  ctx.beginPath(); ctx.arc(63,-20,8,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // headlight beam
+  ctx.save(); ctx.globalAlpha=0.07;
+  const hbg=ctx.createRadialGradient(63,-20,4,63,-20,160);
+  hbg.addColorStop(0,'#ffffaa'); hbg.addColorStop(1,'transparent');
+  ctx.fillStyle=hbg; ctx.beginPath(); ctx.moveTo(63,-20); ctx.arc(63,-20,160,-0.4,0.4); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // ARNOLD
+  drawArnoldRiding(ctx, 5, -40);
+  ctx.restore();
+}
+
+function drawArnoldRiding(ctx,ox,oy) {
+  ctx.save(); ctx.translate(ox,oy);
+  // torso
+  ctx.fillStyle='#111';
+  ctx.beginPath(); ctx.roundRect(-13,-22,26,30,[3]); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.04)';
+  ctx.beginPath(); ctx.roundRect(-11,-20,10,16,[2]); ctx.fill();
+  // right arm (handlebar)
+  ctx.fillStyle='#111'; ctx.save(); ctx.translate(13,-12); ctx.rotate(-28*Math.PI/180);
+  ctx.fillRect(-4,0,8,24);
+  ctx.fillStyle='#c68642'; ctx.beginPath(); ctx.arc(0,26,6,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // left arm + shotgun aimed at cursor
+  ctx.save(); ctx.translate(-11,-12); ctx.rotate(-22*Math.PI/180);
+  ctx.fillStyle='#111'; ctx.fillRect(-4,0,8,24);
+  ctx.fillStyle='#c68642'; ctx.beginPath(); ctx.arc(0,26,6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#444'; ctx.fillRect(-3,16,7,34);
+  ctx.fillStyle='#333'; ctx.fillRect(-2,38,5,14);
+  ctx.fillStyle='#555'; ctx.fillRect(-3,18,7,8);
+  ctx.restore();
+  // head
+  ctx.fillStyle='#c68642'; ctx.beginPath(); ctx.roundRect(-10,-38,20,22,[7,7,3,3]); ctx.fill();
+  // sunglasses
+  ctx.fillStyle='#000'; ctx.fillRect(-9,-34,7,5); ctx.fillRect(2,-34,7,5);
+  ctx.strokeStyle='#333'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(-2,-32); ctx.lineTo(2,-32); ctx.stroke();
+  // red terminator eye
+  ctx.fillStyle='#ff3300'; ctx.shadowColor='#ff3300'; ctx.shadowBlur=6;
+  ctx.beginPath(); ctx.arc(-5,-32,2,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  // hair
+  ctx.fillStyle='#1a0f00'; ctx.beginPath(); ctx.roundRect(-10,-44,20,10,[5,5,0,0]); ctx.fill();
+  ctx.restore();
+}
+
+function drawCop(cop) {
+  if(!cop.alive&&!cop.melting) return;
+  ctx.save(); ctx.translate(cop.x, cop.y);
+  const alpha = cop.melting ? Math.max(0,1-cop.meltAmt) : 1;
+  ctx.globalAlpha = alpha;
+  const wc=cop.wc, meltD=cop.melting?cop.meltAmt:0;
+  const legSwing = Math.sin(wc*0.45)*20;
+  const armSwing = Math.sin(wc*0.45)*15;
+  const bob = Math.abs(Math.sin(wc*0.45))*5;
+  const mW = Math.sin(Date.now()*0.004+cop.id)*(cop.melting?6*meltD:1.5);
+
+  // shadow
+  ctx.fillStyle='rgba(192,192,192,0.1)';
+  ctx.beginPath(); ctx.ellipse(0,4,22,6,0,0,Math.PI*2); ctx.fill();
+
+  // melt drips
+  if(cop.melting) for(let d=0;d<6;d++){
+    ctx.fillStyle=`rgba(210,210,230,${alpha*0.65})`;
+    ctx.beginPath(); ctx.arc(-12+d*5,12+d*9*meltD,3*(1-meltD*0.5),0,Math.PI*2); ctx.fill();
+  }
+
+  // LEGS
+  for(let s=-1;s<=1;s+=2){
+    ctx.save(); ctx.translate(s*8,20-bob); ctx.rotate(s*legSwing*Math.PI/180);
+    ctx.fillStyle='#1a1a3a'; ctx.beginPath(); ctx.roundRect(-5,0,10,26,2); ctx.fill();
+    const lg=ctx.createLinearGradient(-5,0,5,0);
+    lg.addColorStop(0,'rgba(180,180,220,0)'); lg.addColorStop(0.5,'rgba(180,180,220,0.3)'); lg.addColorStop(1,'rgba(180,180,220,0)');
+    ctx.fillStyle=lg; ctx.fillRect(-5,0,10,26);
+    ctx.fillStyle='#111'; ctx.fillRect(-6,22,13,7);
+    ctx.restore();
+  }
+
+  // BODY uniform
+  ctx.save(); ctx.translate(mW*0.1,-bob);
+  const bg=ctx.createLinearGradient(-16,-28,16,20);
+  bg.addColorStop(0,'#1a1a4a'); bg.addColorStop(0.3,'#22226a'); bg.addColorStop(0.7,'#1a1a4a'); bg.addColorStop(1,'#101030');
+  ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(-15,-28,30,48,[3,3,2,2]); ctx.fill();
+  const blg=ctx.createLinearGradient(-15,-28,15,20);
+  blg.addColorStop(0,'rgba(192,192,192,0)'); blg.addColorStop(0.4,'rgba(192,192,192,0.22)'); blg.addColorStop(1,'rgba(192,192,192,0)');
+  ctx.fillStyle=blg; ctx.fillRect(-15,-28,30,48);
+  // badge
+  ctx.fillStyle='#c8a000';
+  ctx.beginPath();
+  for(let i=0;i<5;i++){const a=i/5*Math.PI*2-Math.PI/2;ctx.lineTo(Math.cos(a)*8+5,Math.sin(a)*8-14);}
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#ffd700'; ctx.font='bold 5px monospace'; ctx.textAlign='center'; ctx.fillText('T1K',5,-12);
+  // belt
+  ctx.fillStyle='#111'; ctx.fillRect(-15,16,30,5);
+  ctx.fillStyle='#555'; ctx.fillRect(-4,17,8,3);
+  ctx.restore();
+
+  // ARMS
+  for(let s=-1;s<=1;s+=2){
+    ctx.save(); ctx.translate(s*17,-18-bob); ctx.rotate(s*armSwing*Math.PI/180);
+    const ag=ctx.createLinearGradient(-4,0,4,0);
+    ag.addColorStop(0,'#1a1a4a'); ag.addColorStop(0.5,'rgba(192,192,220,0.35)'); ag.addColorStop(1,'#1a1a4a');
+    ctx.fillStyle=ag; ctx.beginPath(); ctx.roundRect(-4,0,8,24,3); ctx.fill();
+    ctx.fillStyle='#c8c8cc'; ctx.shadowColor='#fff'; ctx.shadowBlur=4;
+    ctx.beginPath(); ctx.moveTo(-4,24); ctx.lineTo(4,24); ctx.lineTo(s*4,40); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0; ctx.restore();
+  }
+
+  // HEAD
+  const hg=ctx.createRadialGradient(-3,-52+mW*0.2,2,0,-52,15);
+  hg.addColorStop(0,'#f0f0f8'); hg.addColorStop(0.5,'#c8c8d8'); hg.addColorStop(1,'#888898');
+  ctx.fillStyle=hg; ctx.beginPath(); ctx.ellipse(mW*0.15,-52-bob,13,16,0,0,Math.PI*2); ctx.fill();
+
+  // COP HAT
+  const hatG=ctx.createLinearGradient(-14,-76,14,-60);
+  hatG.addColorStop(0,'#aaaacc'); hatG.addColorStop(0.5,'#d8d8f0'); hatG.addColorStop(1,'#8888aa');
+  ctx.fillStyle=hatG;
+  ctx.beginPath(); ctx.ellipse(mW*0.1,-66-bob,19,4.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(-11+mW*0.1,-84-bob,22,19,[6,6,0,0]); ctx.fill();
+  ctx.fillStyle='#1a1a3a'; ctx.fillRect(-11+mW*0.1,-68-bob,22,4);
+  // hat badge star
+  ctx.fillStyle='#ffd700'; ctx.beginPath(); ctx.arc(mW*0.1,-76-bob,4.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#111'; ctx.font='bold 5px monospace'; ctx.textAlign='center'; ctx.fillText('★',mW*0.1,-74-bob);
+  // NYPD label on hat
+  ctx.fillStyle='rgba(0,0,80,0.8)'; ctx.fillRect(-8+mW*0.1,-68-bob,16,5);
+  ctx.fillStyle='#ffd700'; ctx.font='bold 4px monospace'; ctx.fillText('POLICE',mW*0.1,-64-bob);
+
+  // eyes
+  ctx.fillStyle='#fff'; ctx.shadowColor='#fff'; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.ellipse(-5+mW*0.1,-54-bob,3.5,2.5,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(5+mW*0.1,-54-bob,3.5,2.5,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#000';
+  ctx.beginPath(); ctx.arc(-5+mW*0.1,-54-bob,1.5,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5+mW*0.1,-54-bob,1.5,0,Math.PI*2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawExhaust(x,y) {
+  for(let i=0;i<3;i++){
+    ctx.save(); ctx.globalAlpha=0.13-i*0.04;
+    ctx.fillStyle='#999'; ctx.beginPath();
+    ctx.arc(x-62-i*20,y-1+Math.sin(Date.now()*0.01+i)*3,5+i*4,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawCrosshair(cx,cy) {
+  ctx.save();
+  ctx.strokeStyle='rgba(255,200,0,0.8)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+  ctx.beginPath();
+  ctx.moveTo(cx-16,cy); ctx.lineTo(cx+16,cy);
+  ctx.moveTo(cx,cy-16); ctx.lineTo(cx,cy+16);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle='rgba(255,220,0,0.9)'; ctx.beginPath(); ctx.arc(cx,cy,2,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function loop(ts) {
+  if(!running) return;
+  ctx.clearRect(0,0,W,H);
+  bgOffset += BIKE_SPEED;
+  ctx.save();
+  if(screenShake>0){ ctx.translate((Math.random()-0.5)*screenShake,(Math.random()-0.5)*screenShake*0.5); screenShake=Math.max(0,screenShake-1.2); }
+
+  drawSky(); drawRoad();
+  const gy=gY();
+  bike.wheelRot += BIKE_SPEED*0.065;
+  bike.y = gy;
+  if(invincible>0) invincible--;
+
+  drawExhaust(bike.x-42, bike.y+2);
+
+  // Update & draw cops
+  cops.forEach(cop=>{
+    if(!cop.alive&&!cop.melting){
+      if(cop.respawnTimer>0){
+        cop.respawnTimer--;
+        const pct=1-cop.respawnTimer/180;
+        ctx.save(); ctx.globalAlpha=0.5; ctx.fillStyle='#c0c0c0'; ctx.font='9px Orbitron,monospace'; ctx.textAlign='center';
+        const rx=80+cop.id*150;
+        ctx.fillText(`COP #${cop.id+1} REFORMING ${(3-pct*3).toFixed(1)}s`,rx,70);
+        ctx.fillStyle='rgba(150,150,150,0.18)'; ctx.fillRect(rx-52,75,104,3);
+        ctx.fillStyle='#c0c0c0'; ctx.fillRect(rx-52,75,104*pct,3);
+        ctx.restore();
+      } else {
+        cop.x=W+90+Math.random()*220; cop.y=gy;
+        cop.alive=true; cop.melting=false; cop.meltAmt=0;
+        cop.vy=0; cop.onGround=true;
+        cop.speed=cop.baseSpeed+kills*0.18;
+      }
+      return;
+    }
+    if(cop.melting){ cop.meltAmt+=0.024; if(cop.meltAmt>=1){cop.alive=false;cop.melting=false;cop.respawnTimer=180;} cop.wc+=0.12; drawCop(cop); return; }
+    // world scroll
+    cop.x -= BIKE_SPEED;
+    // chase bike
+    const dx=bike.x-cop.x;
+    cop.x += Math.sign(dx)*cop.speed;
+    cop.wc += 0.6+cop.speed*0.08;
+    // jump AI
+    cop.jumpTimer--;
+    if(cop.jumpTimer<=0&&cop.onGround){ cop.vy=-cop.jumpPower; cop.onGround=false; cop.jumpTimer=72+Math.random()*55; }
+    cop.vy += 0.58; cop.y += cop.vy;
+    if(cop.y>=gy){ cop.y=gy; cop.vy=0; cop.onGround=true; }
+    // touch damage
+    if(Math.abs(cop.x-bike.x)<62&&cop.y>=gy-25){ takeDmg(); cop.x+=cop.x<bike.x?-130:130; }
+    drawCop(cop);
+  });
+
+  drawMotorcycle(bike.x, bike.y, bike.wheelRot, invincible);
+
+  // Bullets
+  bullets=bullets.filter(b=>{
+    b.x+=b.vx; b.y+=b.vy; b.life--;
+    if(b.life<=0||b.x<0||b.x>W||b.y<0||b.y>H) return false;
+    let hit=false;
+    cops.forEach(cop=>{
+      if(!cop.alive||cop.melting) return;
+      if(Math.abs(b.x-cop.x)<30&&Math.abs(b.y-(cop.y-40))<54){meltCop(cop);hit=true;}
+    });
+    if(!hit){
+      ctx.save(); ctx.strokeStyle='#ffaa00'; ctx.lineWidth=3; ctx.shadowColor='#ff8800'; ctx.shadowBlur=9;
+      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.x-b.vx*3,b.y-b.vy*3); ctx.stroke(); ctx.restore();
+    }
+    return !hit;
+  });
+
+  // Particles
+  particles=particles.filter(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.28; p.life--;
+    ctx.save(); ctx.globalAlpha=p.life/55; ctx.fillStyle=p.col;
+    if(p.type==='shell') ctx.fillRect(p.x-2,p.y-3,4,7);
+    else{ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();}
+    ctx.restore(); return p.life>0;
+  });
+
+  // Muzzle flashes
+  flashes=flashes.filter(f=>{
+    f.life--;
+    ctx.save(); ctx.globalAlpha=f.life/8; ctx.fillStyle='#ffcc00'; ctx.shadowColor='#ffcc00'; ctx.shadowBlur=24;
+    ctx.beginPath(); ctx.arc(f.x,f.y,15*(f.life/8),0,Math.PI*2); ctx.fill(); ctx.restore();
+    return f.life>0;
+  });
+
+  // Floaters
+  floaters=floaters.filter(fl=>{
+    fl.y-=0.75; fl.life--;
+    ctx.save(); ctx.globalAlpha=fl.life/72; ctx.fillStyle=fl.col;
+    ctx.font='bold 13px "Orbitron",monospace'; ctx.textAlign='center';
+    ctx.fillText(fl.text,fl.x,fl.y); ctx.restore();
+    return fl.life>0;
+  });
+
+  drawCrosshair(mx,my);
+  ctx.restore();
+  updateHUD();
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
